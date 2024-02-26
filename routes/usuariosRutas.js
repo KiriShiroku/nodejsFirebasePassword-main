@@ -1,5 +1,5 @@
 var ruta = require("express").Router();
-var fs=require("fs");
+var fs = require("fs");
 var {
   mostrarUsuarios,
   nuevoUsuario,
@@ -9,24 +9,20 @@ var {
   buscarPorUsuario,
   verificarPassword,
 } = require("../database/usuariosbd");
-var subirArchivo=require("../middlewares/subirArchivos")
+var subirArchivo = require("../middlewares/subirArchivos");
 var { autorizado , admin } = require("../middlewares/funcionesPassword");
 
-ruta.get("/", async (req, res) => {
-  res.render("usuarios/login");
+ruta.get("/usuarios", async (req, res) => {
+    var usuarios = await mostrarUsuarios();
+    res.render("usuarios/mostrar", { usuarios });
 });
 
-ruta.get("/nuevousuario", async (req, res) => {
+ruta.get("/nuevousuario", (req, res) => {
   res.render("usuarios/nuevo");
 });
 
-ruta.get("/mostrarUsuarios", autorizado,async(req, res)=>{
-  var usuarios = await mostrarUsuarios();
-  res.render("usuarios/mostrar",{usuarios});
-});
-
 ruta.post("/nuevousuario", subirArchivo(), async (req, res) => {
-  req.body.foto=req.file.originalname;
+  req.body.foto = req.file.originalname;
   var error = await nuevoUsuario(req.body);
   res.redirect("/");
 });
@@ -38,38 +34,36 @@ ruta.get("/editar/:id", async (req, res) => {
 
 ruta.post("/editar", subirArchivo(), async (req, res) => {
   try {
-      const usuarioAct = await buscarPorID(req.body.id);
-      if (req.file) {
-          req.body.foto = req.file.originalname;
-          if (usuarioAct.foto) {
-              const rutaFotoAnterior = `web/images/${usuarioAct.foto}`;
-              if (fs.existsSync(rutaFotoAnterior)) {
-                fs.unlinkSync(rutaFotoAnterior);
-            }
-          }
-      }else {
-        req.body.foto = req.body.fotoVieja;   
+    const usuarioAct = await buscarPorID(req.body.id);
+    if (req.file) {
+      req.body.foto = req.file.originalname;
+      if (usuarioAct.foto) {
+        const rutaFotoAnterior = `web/images/${usuarioAct.foto}`;
+        fs.unlinkSync(rutaFotoAnterior);
       }
-      await modificarUsuario(req.body);
-      res.redirect("/");
+    } else {
+      req.body.foto = req.body.fotoVieja;   
+    }
+    await modificarUsuario(req.body);
+    res.redirect("/");
   } catch (error) {
-      console.error("Error al editar pr:", error);
-      res.status(500).send("Error interno del servidor");
+    console.error("Error al editar pr:", error);
+    res.status(500).send("Error interno del servidor");
   }
 });
 
 ruta.get("/borrar/:id", async (req, res) => {
-  var usuario=await buscarPorID(req.params.id)
-  if(usuario){
-  var foto= usuario.foto;
-  fs.unlinkSync(`web/images/${foto}`);
-  await borrarUsuario(req.params.id);
+  var usuario = await buscarPorID(req.params.id)
+  if (usuario) {
+    var foto = usuario.foto;
+    fs.unlinkSync(`web/images/${foto}`);
+    await borrarUsuario(req.params.id);
   }
-  res.redirect("/usuarios");
+  res.redirect("/");
 });
 
 ruta.get("/", (req, res) => {
-  res.render("usuarios/login");
+  res.redirect("/usuarios");
 });
 
 ruta.post("/login", async (req, res) => {
@@ -83,7 +77,7 @@ ruta.post("/login", async (req, res) => {
         res.redirect("/productos/productos/nuevoproducto");
       }else{
         req.session.usuario = usuarioEncontrado.usuario;  
-        res.redirect("/mostrarUsuarios");
+        res.redirect("/usuarios");
       }
     } else {
       console.log("Usuario o contraseña incorrectos");
